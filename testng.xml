@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="ReadysATSAutomationSuite" parallel="false" thread-count="1" verbose="2">
+
+    <parameter name="browser" value="chromium"/>
+    <parameter name="headless" value="false"/>
+    <parameter name="environment" value="QA"/>
+
+    <listeners>
+        <listener class-name="com.readys.ats.base.TestListener"/>
+    </listeners>
+
+    <test name="LoginTests" preserve-order="true">
+        <parameter name="testType" value="smoke"/>
+        <classes>
+            <class name="com.readys.ats.tests.LoginTests">
+                <methods>
+                    <include name="testValidLogin"/>
+                    <include name="testInvalidLogin"/>
+                    <include name="testEmptyFieldsLogin"/>
+                </methods>
+            </class>
+        </classes>
+    </test>
+
+</suite>
