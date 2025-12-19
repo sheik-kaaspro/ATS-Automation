@@ -1,163 +1,256 @@
 package com.readys.ats.tests;
 
-import com.readys.ats.base.BaseTest;
-import com.readys.ats.pages.LoginPage;
-import com.readys.ats.pages.OrganizationPage;
-import com.readys.ats.utils.ExtentReportManager;
-
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.microsoft.playwright.Locator;
+import com.readys.ats.base.BaseTest;
+import com.readys.ats.pages.LoginPage;
+import com.readys.ats.pages.OrganizationPage;
+import com.readys.ats.utils.ExtentReportManager;
+
 public class OrganizationTest extends BaseTest {
 
-    private static final Logger logger = LogManager.getLogger(OrganizationTest.class);
+    private static final Logger logger =
+            LogManager.getLogger(OrganizationTest.class);
 
     private LoginPage loginPage;
     private OrganizationPage organizationPage;
-
-    // -------------------- SETUP & LOGIN --------------------
-
-    @BeforeClass(alwaysRun = true)
-    public void setupOrganizationTests() {
+    private String createdOrgName;
+    
+    public void verifyOrganizationPresentInList(String organizationName) {
         try {
-            logger.info("===== Organization Test Setup Started =====");
+            // Wait for table to load
+            page.waitForSelector("table tbody tr", 
+                new com.microsoft.playwright.Page.WaitForSelectorOptions().setTimeout(15000));
+            
+            // Try multiple strategies
+            String normalizedXpath = "//table//tr//td[normalize-space()='" + organizationName + "']";
+            String containsXpath = "//table//tr//td[contains(text(),'" + organizationName + "')]";
+            
+            Locator row = null;
+            try {
+                row = page.locator(normalizedXpath);
+                row.waitFor(new Locator.WaitForOptions().setTimeout(10000));
+            } catch (Exception e1) {
+                try {
+                    row = page.locator(containsXpath);
+                    row.waitFor(new Locator.WaitForOptions().setTimeout(10000));
+                } catch (Exception e2) {
+                    throw new RuntimeException(
+                        "Organization not found in list: " + organizationName
+                    );
+                }
+            }
+
+            if (!row.isVisible()) {
+                throw new RuntimeException(
+                    "Organization not visible in list: " + organizationName
+                );
+            }
+        } catch (Exception e) {
+            logger.error("Failed to verify organization in list: " + organizationName, e);
+            throw e;
+        }
+    }
+
+    // =====================================================
+    // LOGIN ONCE – SAME TAB
+    // =====================================================
+    @BeforeClass(alwaysRun = true)
+    public void loginOnce() {
+        try {
+            logger.info("===== OrganizationTest : LOGIN ONCE START =====");
+
+            // Navigate to organizations page
+            String orgUrl = config.getAppUrl();
+            if (!orgUrl.endsWith("/admin/organizations")) {
+                orgUrl = orgUrl.replace("/login", "/admin/organizations");
+            }
+            
+            getPage().navigate(orgUrl);
 
             loginPage = new LoginPage(getPage());
             organizationPage = new OrganizationPage(getPage());
 
-            // 🔑 LOGIN ONLY (no extra verifyPageLoaded)
-            loginPage.loginWithValidCredentials();
+            // Check if already logged in
+            if (getPage().url().contains("login")) {
+                // Perform login
+                loginPage.loginWithValidCredentials();
 
-            // ✅ Validate landing page URL instead of login page elements
-            String currentUrl = getPage().url();
-            if (!currentUrl.contains("admin")) {
-                throw new RuntimeException("Login failed. Current URL: " + currentUrl);
+                // Navigate to organizations page after login
+                getPage().navigate(orgUrl);
             }
 
-            logger.info("Login successful, navigated to admin area");
-            ExtentReportManager.logPass("Login successful for Organization tests");
+            // Wait for organizations page to load
+            getPage().waitForURL(
+                url -> url.contains("admin/organizations"),
+                new com.microsoft.playwright.Page.WaitForURLOptions()
+                        .setTimeout(20000)
+            );
+            
+            // Wait for page content
+            getPage().waitForLoadState();
+
+            ExtentReportManager.logPass(
+                "Login successful and navigated to Organization page"
+            );
 
         } catch (Exception e) {
-            logger.error("Organization test setup failed", e);
-            ExtentReportManager.logFail("Organization test setup failed: " + e.getMessage());
-            throw new RuntimeException("Organization test setup failed", e);
+            logger.error("Login failed in OrganizationTest", e);
+            ExtentReportManager.logFail(
+                "Login failed in OrganizationTest: " + e.getMessage()
+            );
+
+            String screenshot =
+                captureScreenshotOnFailure("Organization_Login_Failure");
+            if (screenshot != null) {
+                ExtentReportManager.attachScreenshot(
+                    screenshot, "Login Failure"
+                );
+            }
+
+            throw new RuntimeException("Login failed", e);
         }
     }
 
-    // -------------------- TEST 1 : VERIFY UI --------------------
-
-    @Test(
-        groups = {"organization", "ui", "smoke"},
-        description = "Verify Organization page UI elements",
-        priority = 1
-    )
+    // =====================================================
+    // TEST 1 – VERIFY PAGE UI
+    // =====================================================
+    @Test(priority = 1, groups = {"organization", "ui"}, enabled = true)
     public void verifyOrganizationPageUI() {
         try {
             organizationPage.verifyOrganizationPageLoaded();
 
-            ExtentReportManager.logPass("Organization page UI verified successfully");
+            ExtentReportManager.logPass(
+                "Organization page UI verified successfully"
+            );
 
         } catch (Exception e) {
-            logger.error("verifyOrganizationPageUI failed: " + e.getMessage(), e);
-            ExtentReportManager.logFail("Organization page UI verification failed: " + e.getMessage());
+            ExtentReportManager.logFail(
+                "Organization UI verification failed: " + e.getMessage()
+            );
 
-            String screenshotPath = captureScreenshotOnFailure("verifyOrganizationPageUI");
-            if (screenshotPath != null) {
-                ExtentReportManager.attachScreenshot(screenshotPath, "Organization UI Failure");
+            String screenshot =
+                captureScreenshotOnFailure("verifyOrganizationPageUI");
+            if (screenshot != null) {
+                ExtentReportManager.attachScreenshot(
+                    screenshot, "UI Failure"
+                );
             }
+
             throw e;
         }
     }
 
-    // -------------------- TEST 2 : CREATE ORGANIZATION --------------------
-
-    @Test(
-        groups = {"organization", "crud", "critical"},
-        description = "Verify Create Organization functionality",
-        priority = 2
-    )
+    // =====================================================
+    // TEST 2 – CREATE ORGANIZATION
+    // =====================================================
+    @Test(priority = 2, groups = {"organization", "crud"}, enabled = true)
     public void testCreateOrganization() {
         try {
-            String companyName = "AutoOrg_" + System.currentTimeMillis();
-            String email = "auto_" + System.currentTimeMillis() + "@test.com";
-            String phone = "9876543210";
+            String email = organizationPage.generateRandomEmail();
+            String orgName = organizationPage.generateRandomCompanyName();
+            String phone = organizationPage.generateIndianPhoneNumber();
+            
+            createdOrgName = orgName;
+            
+            logger.info("Creating organization: " + orgName);
 
-            organizationPage.createOrganization(companyName, email, phone);
-            organizationPage.searchOrganization(companyName);
+            organizationPage.createOrganization(orgName, email, phone);
+            
+            // Verify it appears in the list
+            organizationPage.searchOrganization(orgName);
+            verifyOrganizationPresentInList(orgName);
 
-            ExtentReportManager.logPass("Organization created successfully: " + companyName);
+            ExtentReportManager.logPass(
+                "Organization created successfully: " + orgName
+            );
 
         } catch (Exception e) {
-            logger.error("testCreateOrganization failed: " + e.getMessage(), e);
-            ExtentReportManager.logFail("Create Organization test failed: " + e.getMessage());
+            ExtentReportManager.logFail(
+                "Create Organization failed: " + e.getMessage()
+            );
 
-            String screenshotPath = captureScreenshotOnFailure("testCreateOrganization");
-            if (screenshotPath != null) {
-                ExtentReportManager.attachScreenshot(screenshotPath, "Create Organization Failure");
+            String screenshot =
+                captureScreenshotOnFailure("testCreateOrganization");
+            if (screenshot != null) {
+                ExtentReportManager.attachScreenshot(
+                    screenshot, "Create Failure"
+                );
             }
+
+            throw e;
+        }
+    }
+    
+    
+
+    // =====================================================
+    // TEST 3 – EDIT ORGANIZATION
+    // =====================================================
+    @Test(priority = 3, groups = {"organization", "crud"}, enabled = true)
+    public void testEditOrganization() {
+        try {
+        	
+             
+            String updatedName= organizationPage.generateRandomCompanyName();
+            
+            logger.info("Editing organization to: " + updatedName);
+
+            organizationPage.editFirstOrganization(updatedName);
+            organizationPage.verifyOrganizationUpdated(updatedName);
+
+            ExtentReportManager.logPass(
+                "Organization edited successfully: " + updatedName
+            );
+
+        } catch (Exception e) {
+            ExtentReportManager.logFail(
+                "Edit Organization failed: " + e.getMessage()
+            );
+
+            String screenshot =
+                captureScreenshotOnFailure("testEditOrganization");
+            if (screenshot != null) {
+                ExtentReportManager.attachScreenshot(
+                    screenshot, "Edit Failure"
+                );
+            }
+
             throw e;
         }
     }
 
-    // -------------------- TEST 3 : EDIT ORGANIZATION --------------------
-
-    @Test(
-    	    groups = {"organization", "crud"},
-    	    description = "Verify Edit Organization functionality",
-    	    priority = 3
-    	)
-    	public void testEditOrganization() {
-    	    try {
-    	        String updatedName = "Edited_Org_" + System.currentTimeMillis();
-
-    	        organizationPage.editFirstOrganization(updatedName);
-    	        organizationPage.verifyOrganizationUpdated(updatedName);
-
-    	        ExtentReportManager.logPass(
-    	            "Organization edited and verified successfully: " + updatedName
-    	        );
-
-    	    } catch (Exception e) {
-    	        logger.error("testEditOrganization failed: " + e.getMessage(), e);
-    	        ExtentReportManager.logFail(
-    	            "Edit Organization test failed: " + e.getMessage()
-    	        );
-
-    	        String screenshotPath =
-    	                captureScreenshotOnFailure("testEditOrganization");
-    	        if (screenshotPath != null) {
-    	            ExtentReportManager.attachScreenshot(
-    	                screenshotPath, "Edit Organization Failure"
-    	            );
-    	        }
-    	        throw e;
-    	    }
-    	}
-
-
-    // -------------------- TEST 4 : DELETE ORGANIZATION --------------------
-
-    @Test(
-        groups = {"organization", "crud"},
-        description = "Verify Delete Organization functionality",
-        priority = 4
-    )
+    // =====================================================
+    // TEST 5 – DELETE ORGANIZATION
+    // =====================================================
+    @Test(priority = 4, groups = {"organization", "crud"}, enabled = true)
     public void testDeleteOrganization() {
         try {
+            logger.info("Deleting first organization");
+            
             organizationPage.clickDeleteFirstOrganization();
 
-            ExtentReportManager.logPass("Organization deleted successfully");
+            ExtentReportManager.logPass(
+                "Organization deleted successfully"
+            );
 
         } catch (Exception e) {
-            logger.error("testDeleteOrganization failed: " + e.getMessage(), e);
-            ExtentReportManager.logFail("Delete Organization test failed: " + e.getMessage());
+            ExtentReportManager.logFail(
+                "Delete Organization failed: " + e.getMessage()
+            );
 
-            String screenshotPath = captureScreenshotOnFailure("testDeleteOrganization");
-            if (screenshotPath != null) {
-                ExtentReportManager.attachScreenshot(screenshotPath, "Delete Organization Failure");
+            String screenshot =
+                captureScreenshotOnFailure("testDeleteOrganization");
+            if (screenshot != null) {
+                ExtentReportManager.attachScreenshot(
+                    screenshot, "Delete Failure"
+                );
             }
+
             throw e;
         }
     }

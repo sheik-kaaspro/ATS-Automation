@@ -62,6 +62,25 @@ public class PlaywrightUtils {
         }
     }
 
+    public static void waitForOverlayToDisappear() {
+        try {
+            Page page = getPage();
+            Locator overlay = page.locator(
+                "div.fixed.inset-0.bg-black.bg-opacity-50"
+            );
+
+            if (overlay.count() > 0) {
+                overlay.first().waitFor(
+                    new Locator.WaitForOptions()
+                        .setState(WaitForSelectorState.DETACHED)
+                        .setTimeout(15000)
+                );
+            }
+        } catch (Exception ignored) {
+            // Overlay may not exist – safe to ignore
+        }
+    }
+
     public static String captureElementScreenshot(String selector, String fileName) {
         try {
             Page currentPage = getPage();
@@ -178,18 +197,12 @@ public class PlaywrightUtils {
 
     public static void clickElement(String selector) {
         try {
-            Page currentPage = getPage();
-            if (currentPage == null) {
-                throw new RuntimeException("Page is null");
-            }
-
-            waitForElement(selector);
-            currentPage.locator(selector).click();
-            logger.info("Clicked element: " + selector);
-
+            waitForOverlayToDisappear();
+            Locator element = getPage().locator(selector);
+            element.click();
         } catch (Exception e) {
-            logger.error("Failed to click element: " + selector + ". Error: " + e.getMessage());
-            throw new RuntimeException("Failed to click element: " + selector, e);
+            throw new RuntimeException(
+                "Failed to click element: " + selector, e);
         }
     }
 

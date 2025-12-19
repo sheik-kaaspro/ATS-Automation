@@ -1,35 +1,49 @@
 package com.readys.ats.tests;
 
-import com.aventstack.extentreports.util.Assert;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.testng.annotations.*;
+
 import com.readys.ats.base.BaseTest;
 import com.readys.ats.pages.LoginPage;
 import com.readys.ats.utils.ExtentReportManager;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 public class LoginTests extends BaseTest {
-    private static final Logger logger = LogManager.getLogger(LoginTests.class);
-    private LoginPage loginPage;
-    
-    
 
-    @BeforeMethod(alwaysRun = true)
-    public void setUpLoginTests() {
+    private static final Logger logger =
+            LogManager.getLogger(LoginTests.class);
+
+    private LoginPage loginPage;
+
+    // ================= CLASS SETUP =================
+
+    @BeforeClass(alwaysRun = true)
+    public void setUpLoginClass() {
         try {
             loginPage = new LoginPage(getPage());
-            logger.info("LoginPage initialized successfully");
+            logger.info("LoginPage initialized once for LoginTests");
         } catch (Exception e) {
-            logger.error("Failed to initialize LoginPage: " + e.getMessage(), e);
-            ExtentReportManager.logFail("Failed to initialize LoginPage: " + e.getMessage());
-            throw new RuntimeException("LoginPage initialization failed", e);
+            throw new RuntimeException("LoginPage init failed", e);
         }
     }
 
+    // ================= RESET BEFORE EACH TEST =================
+
+    @BeforeMethod(alwaysRun = true)
+    public void navigateToLoginPage() {
+        try {
+            getPage().navigate(config.getAppUrl());
+            logger.info("Navigated to Login page before test");
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to navigate to login page", e);
+        }
+    }
+
+    // ================= TESTS =================
+
     @Test(
         groups = {"smoke", "login", "critical"},
-        description = "Verify user can login with valid credentials from config.properties",
+        description = "Verify user can login with valid credentials",
         priority = 1
     )
     public void testValidLogin() {
@@ -37,32 +51,21 @@ public class LoginTests extends BaseTest {
             loginPage.verifyPageLoaded();
             loginPage.verifyLoginFormDisplayed();
 
-            String testEmail = config.getTestEmail();
-            String testPassword = config.getTestPassword();
-
-            if (testEmail.isEmpty() || testPassword.isEmpty()) {
-                throw new RuntimeException("Test credentials not configured in config.properties");
-            }
-
             loginPage.loginWithValidCredentials();
             loginPage.verifyLoginSuccessful();
 
-            ExtentReportManager.logPass("Valid login test completed successfully");
+            ExtentReportManager.logPass("Valid login successful");
 
         } catch (Exception e) {
-            logger.error("Test testValidLogin failed: " + e.getMessage(), e);
-            ExtentReportManager.logFail("Valid login test failed: " + e.getMessage());
-
-            String screenshotPath = captureScreenshotOnFailure("testValidLogin");
-            if (screenshotPath != null) {
-                ExtentReportManager.attachScreenshot(screenshotPath, "Login Failure Screenshot");
-            }
+            logger.error("Valid login failed", e);
+            ExtentReportManager.logFail("Valid login failed: " + e.getMessage());
+            attachFailureScreenshot("testValidLogin");
             throw e;
         }
     }
 
     @Test(
-        groups = {"smoke", "login", "negative"},
+        groups = {"login", "negative"},
         description = "Verify user cannot login with invalid credentials",
         priority = 2
     )
@@ -74,84 +77,73 @@ public class LoginTests extends BaseTest {
             loginPage.loginWithInvalidCredentials();
             loginPage.verifyLoginFailed();
 
-            ExtentReportManager.logPass("Invalid login test completed successfully");
+            ExtentReportManager.logPass("Invalid login validation successful");
 
         } catch (Exception e) {
-            logger.error("Test testInvalidLogin failed: " + e.getMessage(), e);
-            ExtentReportManager.logFail("Invalid login test failed: " + e.getMessage());
-
-            String screenshotPath = captureScreenshotOnFailure("testInvalidLogin");
-            if (screenshotPath != null) {
-                ExtentReportManager.attachScreenshot(screenshotPath, "Invalid Login Failure Screenshot");
-            }
+            logger.error("Invalid login test failed", e);
+            ExtentReportManager.logFail("Invalid login failed: " + e.getMessage());
+            attachFailureScreenshot("testInvalidLogin");
             throw e;
         }
     }
 
     @Test(
-        groups = {"login", "validation", "negative"},
-        description = "Verify validation when trying to login with empty fields",
+        groups = {"login", "validation"},
+        description = "Verify validation when login fields are empty",
         priority = 3
     )
     public void testEmptyFieldsLogin() {
         try {
             loginPage.verifyPageLoaded();
             loginPage.clearAllFields();
-            // Button should be disabled → TRUE
+
             org.testng.Assert.assertTrue(
                 loginPage.isLoginButtonDisabled(),
-                "Login button should be disabled when email and password are empty"
+                "Login button should be disabled"
             );
-            ExtentReportManager.logPass("Empty fields login test completed successfully");
+
+            ExtentReportManager.logPass("Empty field validation successful");
 
         } catch (Exception e) {
-            logger.error("Test testEmptyFieldsLogin failed: " + e.getMessage(), e);
-            ExtentReportManager.logFail("Empty fields login test failed: " + e.getMessage());
-
-            String screenshotPath = captureScreenshotOnFailure("testEmptyFieldsLogin");
-            if (screenshotPath != null) {
-                ExtentReportManager.attachScreenshot(screenshotPath, "Empty Fields Login Failure Screenshot");
-            }
+            logger.error("Empty fields validation failed", e);
+            ExtentReportManager.logFail("Empty fields login failed");
+            attachFailureScreenshot("testEmptyFieldsLogin");
             throw e;
         }
     }
-    
-    @Test(groups = {"login", "validation", "negative"}, description = "Verify Forgot Password Page navigation", priority = 4)
-    public void testFogotPasswordNavigation() {
-    	
-    	try {
-    		
-    		loginPage.verifyPageLoaded();
-        	loginPage.clickForgotPasswordLink();
-        	
-        	String currentUrl = page.get().url().toLowerCase();
-        	
-        	org.testng.Assert.assertTrue(currentUrl.contains("forgot") || currentUrl.contains("reset"), "Forgot Password page did not open. Current URL: " + currentUrl);
-        	
-        	ExtentReportManager.logPass("Forgot password navigation test completed successfully");
-        	
-        	
-			
-		} catch (Exception e) {
-			
-			logger.error("forgot password navigation failed:"+e.getMessage(), e);
-			ExtentReportManager.logFail("Forgot Password Test Failed :"+ e.getMessage());
-			
-			 String screenshotPath = captureScreenshotOnFailure("testForgotPasswordNavigation");
-	            if (screenshotPath != null) {
-	                ExtentReportManager.attachScreenshot(screenshotPath, "Forgot Password Failure Screenshot");
-	            }
-	            throw e;
-			
-		}
+
+    @Test(
+        groups = {"login", "navigation"},
+        description = "Verify Forgot Password navigation",
+        priority = 4
+    )
+    public void testForgotPasswordNavigation() {
+        try {
+            loginPage.verifyPageLoaded();
+            loginPage.clickForgotPasswordLink();
+
+            String currentUrl = getPage().url().toLowerCase();
+            org.testng.Assert.assertTrue(
+                currentUrl.contains("forgot") || currentUrl.contains("reset"),
+                "Forgot password page not opened"
+            );
+
+            ExtentReportManager.logPass("Forgot password navigation successful");
+
+        } catch (Exception e) {
+            logger.error("Forgot password navigation failed", e);
+            ExtentReportManager.logFail("Forgot password navigation failed");
+            attachFailureScreenshot("testForgotPasswordNavigation");
+            throw e;
+        }
     }
-    
-   
-    
-    
-    
-    
-    
-    
-    
+
+    // ================= HELPER =================
+
+    private void attachFailureScreenshot(String testName) {
+        String path = captureScreenshotOnFailure(testName);
+        if (path != null) {
+            ExtentReportManager.attachScreenshot(path, testName + " Failure");
+        }
+    }
 }

@@ -96,6 +96,8 @@ public class LoginPage extends BasePage {
             throw new RuntimeException(error, e);
         }
     }
+    
+    
 
     public void enterPassword(String password) {
         try {
