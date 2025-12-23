@@ -2,6 +2,7 @@ package com.readys.ats.tests;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -159,7 +160,16 @@ public class OrganizationTest extends BaseTest {
             
             logger.info("Creating organization: " + orgName);
 
-            organizationPage.createOrganization(orgName, email, phone);
+           int statusCode = organizationPage.createOrganization(orgName, email, phone);
+           
+        // Verify Backend Response (200 OK or 201 Created)
+           if (statusCode == 200 || statusCode == 201) {
+               ExtentReportManager.logPass("Backend API Verification Successful. Status Code: " + statusCode);
+           } else {
+               ExtentReportManager.logFail("Backend API Verification Failed. Status Code: " + statusCode);
+               // Fail the test if status is not success
+               Assert.assertEquals(statusCode, 200, "API did not return success code!"); 
+           }
             
             // Verify it appears in the list
             organizationPage.searchOrganization(orgName);
@@ -200,8 +210,16 @@ public class OrganizationTest extends BaseTest {
             
             logger.info("Editing organization to: " + updatedName);
 
-            organizationPage.editFirstOrganization(updatedName);
+           int statusCode = organizationPage.editFirstOrganization(updatedName);
             organizationPage.verifyOrganizationUpdated(updatedName);
+            
+         // 2. Verify Backend Status (Usually 200 for Update)
+            if (statusCode == 200) {
+                ExtentReportManager.logPass("Backend Edit Verification Successful. Status Code: " + statusCode);
+            } else {
+                ExtentReportManager.logFail("Backend Edit Verification Failed. Status Code: " + statusCode);
+                Assert.assertEquals(statusCode, 200, "API did not return 200 OK for edit!");
+            }
 
             ExtentReportManager.logPass(
                 "Organization edited successfully: " + updatedName
@@ -232,7 +250,19 @@ public class OrganizationTest extends BaseTest {
         try {
             logger.info("Deleting first organization");
             
-            organizationPage.clickDeleteFirstOrganization();
+           int statusCode = organizationPage.clickDeleteFirstOrganization();
+           
+        // Delete usually returns 200 (OK) or 204 (No Content)
+           if (statusCode == 200 || statusCode == 204) {
+               ExtentReportManager.logPass(
+                   "Backend Delete Verification Successful. Status Code: " + statusCode
+               );
+           } else {
+               ExtentReportManager.logFail(
+                   "Backend Delete Verification Failed. Status Code: " + statusCode
+               );
+               Assert.fail("API did not return success code for delete! Got: " + statusCode);
+           }
 
             ExtentReportManager.logPass(
                 "Organization deleted successfully"

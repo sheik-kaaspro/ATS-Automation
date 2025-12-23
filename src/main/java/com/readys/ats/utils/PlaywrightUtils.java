@@ -3,6 +3,7 @@ package com.readys.ats.utils;
 import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.UUID;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -572,6 +573,11 @@ public class PlaywrightUtils {
             Thread.currentThread().interrupt();
             logger.warn("Sleep interrupted");
         }
+    }
+    
+    public static String generateRandomEmail() {
+        String uuid = UUID.randomUUID().toString().substring(0, 8);
+        return "testuser_" + uuid + "@mailinator.com";
     }
     
    

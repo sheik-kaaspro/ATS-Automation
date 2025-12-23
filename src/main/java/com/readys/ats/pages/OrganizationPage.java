@@ -1,11 +1,13 @@
 package com.readys.ats.pages;
 
 import java.util.Random;
+
 import java.util.UUID;
 
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.options.WaitForSelectorState;
+import com.microsoft.playwright.Response;
 
 public class OrganizationPage {
 
@@ -13,7 +15,7 @@ public class OrganizationPage {
 
     public OrganizationPage(Page page) {
         this.page = page;
-    }
+    } 
 
     // ================== LOCATORS ==================
 
@@ -157,7 +159,7 @@ public class OrganizationPage {
 
     // ================== CREATE ==================
 
-    public void createOrganization(String name, String email, String phone) {
+    public int createOrganization(String name, String email, String phone) {
         System.out.println("Starting create organization: " + name);
         
         // Ensure no modal is open
@@ -185,13 +187,28 @@ public class OrganizationPage {
         page.waitForTimeout(500);
 
         System.out.println("Clicking create button in modal...");
-        // Click create button in modal
-        page.locator(createButton).click();
+        
+        
+     // This block listens for the response WHILE clicking the button
+        Response response = page.waitForResponse(
+            res -> res.url().contains("/api/organizations/")  // <-- REPLACE with your actual API endpoint
+                && res.request().method().equalsIgnoreCase("POST"), // Usually Create is POST
+            () -> {
+                // The action that triggers the request
+                page.locator(createButton).click();
+            }
+        );
+        
+     // Log the status for debugging
+        System.out.println("API Response Status: " + response.status());
         
         // Wait for modal to close
         waitForModalToClose();
         
         System.out.println("Create organization completed");
+        
+     // Return the status code to the test class
+        return response.status();
     }
 
     public void searchOrganization(String name) {
@@ -222,7 +239,7 @@ public class OrganizationPage {
 
     // ================== EDIT ==================
 
-    public void editFirstOrganization(String updatedName) {
+    public int editFirstOrganization(String updatedName) {
         System.out.println("Starting edit operation for: " + updatedName);
         
         // 1. Ensure clean state
@@ -283,11 +300,21 @@ public class OrganizationPage {
         
         page.waitForTimeout(500);
         
-        System.out.println("Clicking update button...");
-        page.locator(updateButton).click();
+        System.out.println("Clicking update button and waiting for API response...");
         
+        Response response = page.waitForResponse(
+                res -> res.url().contains("/api/organizations/") // Update this path if needed
+                    && (res.request().method().equalsIgnoreCase("PUT") || res.request().method().equalsIgnoreCase("PATCH")), 
+                () -> {
+                    // The action that triggers the request
+                    page.locator(updateButton).click();
+                }
+            );
+        
+        System.out.println("Edit API Response Status: " + response.status());
         waitForModalToClose();
         System.out.println("Edit operation completed");
+        return response.status();
     }
 
     public void verifyOrganizationUpdated(String updatedName) {
@@ -307,7 +334,7 @@ public class OrganizationPage {
 
     // ================== DELETE ==================
 
-    public void clickDeleteFirstOrganization() {
+    public int clickDeleteFirstOrganization() {
         System.out.println("Starting delete operation...");
         
         // Ensure no modal is open
@@ -350,14 +377,21 @@ public class OrganizationPage {
         
         page.waitForTimeout(1000);
 
-        System.out.println("Clicking confirm delete button...");
-        
-        // Click confirm button
-        page.locator(deleteConfirmButton).click();
+        System.out.println("Clicking confirm delete button and waiting for API response...");
+        Response response = page.waitForResponse(
+                res -> res.url().contains("/api/organizations/") // Check if URL matches
+                    && res.request().method().equalsIgnoreCase("DELETE"), // Ensure method is DELETE
+                () -> {
+                    // The action that triggers the actual backend delete
+                    page.locator(deleteConfirmButton).click();
+                }
+            );
+        System.out.println("Delete API Response Status: " + response.status());
 
         // Wait for modal to close
         waitForModalToClose();
         
         System.out.println("Delete operation completed");
+        return response.status();
     }
 }
