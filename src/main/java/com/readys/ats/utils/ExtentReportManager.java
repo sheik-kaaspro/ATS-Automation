@@ -212,11 +212,14 @@ public class ExtentReportManager {
             if (test != null && screenshotPath != null && !screenshotPath.isEmpty()) {
                 File screenshotFile = new File(screenshotPath);
                 if (screenshotFile.exists()) {
+                    // FIX: Use Absolute Path to ensure report can find the image file
+                    String absolutePath = screenshotFile.getAbsolutePath();
                     test.log(Status.INFO, description,
-                        MediaEntityBuilder.createScreenCaptureFromPath(screenshotPath).build());
-                    logger.info("Screenshot attached: " + screenshotPath);
+                        MediaEntityBuilder.createScreenCaptureFromPath(absolutePath).build());
+                    logger.info("Screenshot attached successfully from: " + absolutePath);
                 } else {
-                    logger.warn("Screenshot file not found: " + screenshotPath);
+                    logger.warn("Screenshot file NOT found at: " + screenshotPath);
+                    test.log(Status.WARNING, "Screenshot file not found: " + screenshotPath);
                 }
             }
         } catch (Exception e) {

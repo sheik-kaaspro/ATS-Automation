@@ -147,20 +147,21 @@ public class SystemSettingsTest  extends BaseTest{
             if (isSuccess) {
                 ExtentReportManager.logPass("Notification email updated successfully to: " + newEmail);
             } else {
-                ExtentReportManager.attachScreenshot(
-                    captureScreenshotOnFailure("Email_Update_Failure"), "Missing Toast"
-                );
+            	// captureScreenshotOnFailure returns a path, attachScreenshot handles the rest
+                String path = captureScreenshotOnFailure("Email_Update_Failure");
+                ExtentReportManager.attachScreenshot(path, "Missing Toast Failure");
                 Assert.fail("Success message not displayed for Email update");
+            
             }
             
          
         } catch (Exception e) {
-            logger.error("Test failed: testUpdateNotificationEmail", e);
+        	logger.error("Test failed: testUpdateNotificationEmail", e);
             ExtentReportManager.logFail("Email Update Test failed: " + e.getMessage());
             
-            String screenshot = captureScreenshotOnFailure("testUpdateNotificationEmail");
+            String screenshot = captureScreenshotOnFailure("testUpdateNotificationEmail_Exception");
             if (screenshot != null) {
-                ExtentReportManager.attachScreenshot(screenshot, "Failure Screenshot");
+                ExtentReportManager.attachScreenshot(screenshot, "Critical Failure Screenshot");
             }
             throw e;
         }
